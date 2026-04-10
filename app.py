@@ -1,23 +1,18 @@
 import os
+import warnings
 from openai import OpenAI
 import httpx
-import warnings
-# Suppress the ugly "InsecureRequestWarning" so the developers' output is clean
-warnings.filterwarnings("ignore")
+from rich.console import Console
+from rich.markdown import Markdown
+from rich.panel import Panel
 
-print("--- Initializing Client ---")
-
-# We create a custom HTTP client that ignores the internal self-signed certificate (like curl -k)
-custom_http_client = httpx.Client(verify=False)
-import os
-from openai import OpenAI
-import httpx
-import warnings
+# Initialize the rich console for beautiful terminal UI
+console = Console()
 
 # Suppress the "InsecureRequestWarning" for the self-signed cluster certificate
 warnings.filterwarnings("ignore")
 
-print("--- Initializing Connection to OpenShift AI ---")
+console.print("[bold yellow]--- Initializing Connection to OpenShift AI ---[/bold yellow]")
 
 # Create a custom HTTP client that ignores the internal self-signed certificate
 custom_http_client = httpx.Client(verify=False)
@@ -29,55 +24,52 @@ client = OpenAI(
 
 # 1. DYNAMICALLY FETCH AND PRINT THE MODEL
 try:
-    # Query the vLLM server to see what model is currently loaded
     available_models = client.models.list()
     MODEL_NAME = available_models.data[0].id
     
-    print(f"✅ Successfully connected to the internal cluster network!")
-    print(f"🤖 Active GPU Model: {MODEL_NAME}")
+    console.print("[bold green]✅ Successfully connected to the internal cluster network![/bold green]")
+    console.print(f"[bold cyan]🤖 Active GPU Model:[/bold cyan] {MODEL_NAME}\n")
 except Exception as e:
-    print(f"❌ Failed to connect to the model server. Check your Devfile URL.\nError: {e}")
+    console.print(f"[bold red]❌ Failed to connect to the model server.[/bold red]\nError: {e}")
     exit(1)
 
-print("\n=======================================================")
-print("💬 Welcome to the OpenShift AI Terminal Chatbot!")
-print("Type 'exit' or 'quit' to end the conversation.")
-print("=======================================================\n")
+# Display a nice welcome banner
+welcome_msg = """
+**Type your message below.** Type `exit` or `quit` to end the session.
+"""
+console.print(Panel(Markdown(welcome_msg), title="🚀 OpenShift AI Terminal Chatbot", border_style="blue"))
 
 # 2. INITIALIZE CHAT HISTORY
-# This acts as the "memory" for the chatbot
 chat_history = [
-    {"role": "system", "content": "You are a helpful, expert software engineering assistant. Keep your answers clear, accurate, and concise."}
+    {"role": "system", "content": "You are a helpful, expert software engineering assistant. Keep your answers clear, accurate, and concise. Format code blocks using markdown."}
 ]
 
 # 3. THE CHATBOT LOOP
 while True:
-    # Get input from the developer
-    user_input = input("You: ")
+    # Get user input with a colored prompt
+    user_input = console.input("\n[bold green]You:[/bold green] ")
     
-    # Check if the developer wants to quit
     if user_input.lower() in ['exit', 'quit']:
-        print("Ending session. Goodbye!")
+        console.print("[bold yellow]Ending session. Goodbye![/bold yellow]")
         break
         
-    # Append the new user message to the history
     chat_history.append({"role": "user", "content": user_input})
     
     try:
-        # Send the entire conversation history to the model
-        response = client.chat.completions.create(
-            model=MODEL_NAME,
-            messages=chat_history,
-            max_tokens=500,
-            temperature=0.7
-        )
+        # Display a spinning animation while waiting for the model
+        with console.status("[bold cyan]GPU is thinking...[/bold cyan]", spinner="dots"):
+            response = client.chat.completions.create(
+                model=MODEL_NAME,
+                messages=chat_history,
+                max_tokens=500,
+                temperature=0.7
+            )
+            bot_reply = response.choices[0].message.content
         
-        # Extract the text response
-        bot_reply = response.choices[0].message.content
-        print(f"\nAI: {bot_reply}\n")
+        # Print the AI's response inside a neat panel, rendering any Markdown/Code
+        console.print(Panel(Markdown(bot_reply), title="[bold purple]AI Assistant[/bold purple]", border_style="purple"))
         
-        # Append the AI's response to the history so it has context for the next turn
         chat_history.append({"role": "assistant", "content": bot_reply})
         
     except Exception as e:
-        print(f"\n❌ Error generating response: {e}\n")
+        console.print(f"\n[bold red]❌ Error generating response:[/bold red] {e}\n")
