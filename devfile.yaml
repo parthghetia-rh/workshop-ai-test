@@ -7,7 +7,7 @@ components:
       image: registry.access.redhat.com/ubi9/python-311:latest
       memoryLimit: 2G
       env:
-        - name: OPENAI_API_BASE
+        - name: OPENAI_BASE_URL
           value: "https://workshop-maas-model.workshop-maas.svc.cluster.local:8080/v1"
         - name: OPENAI_API_KEY
           value: "dummy"
