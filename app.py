@@ -7,7 +7,7 @@ client = OpenAI()
 
 # Make sure this matches the exact name you gave the model when 
 # you deployed it in the OpenShift AI UI (e.g., granite-8b-code-instruct)
-MODEL_NAME = "granite-8b-code-instruct"
+MODEL_NAME = "workshop-maas-model"
 
 def run_basic_prompt():
     print(f"--- Sending request to local {MODEL_NAME} on OpenShift AI ---")
